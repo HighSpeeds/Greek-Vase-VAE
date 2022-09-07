@@ -12,7 +12,7 @@ import tqdm
 from dataloader import VaseDataset
 from model import VAE
 from VGGLoss import VGGPerceptualLoss
-from meter import meter,val_meter
+from meter import train_meter,val_meter
 
 class Trainer:
     def __init__(self,param):
@@ -30,13 +30,13 @@ class Trainer:
         self.epochs=param["epochs"]
         self.save_path=param["save_path"]
 
-        self.seed()
+        self.set_seed()
         self.init_model()
         self.init_optimizer()
         self.init_dataloader()
         self.init_recon_loss()
 
-    def seed(self):
+    def set_seed(self):
         torch.manual_seed(self.seed)
         if torch.cuda.is_available():
             torch.cuda.manual_seed(self.seed)
@@ -62,7 +62,7 @@ class Trainer:
 
         self.train_size=int(len(self.dataset)*self.train_test_val_split["train"])
         self.test_size=int(len(self.dataset)*self.train_test_val_split["test"])
-        self.val_size=int(len(self.dataset)*self.train_test_val_split["val"])
+        self.val_size=len(self.dataset)-self.train_size-self.test_size
 
         self.train_dataset,self.test_dataset,self.val_dataset=torch.utils.data.random_split(self.dataset,[self.train_size,self.test_size,self.val_size])
         self.train_dataloader=torch.utils.data.DataLoader(self.train_dataset,batch_size=self.train_batch_size,shuffle=True)
@@ -80,8 +80,8 @@ class Trainer:
     
     def train_one_epoch(self,epoch):
         self.model.train()
-        meter=meter(epoch)
-        for batch_idx,(data,_) in enumerate(self.train_dataloader):
+        meter=train_meter(epoch)
+        for batch_idx,(data,_) in tqdm.tqdm(enumerate(self.train_dataloader)):
             data=data.to(self.device)
             self.optimizer.zero_grad()
             recon_batch,mu,logvar=self.model(data)

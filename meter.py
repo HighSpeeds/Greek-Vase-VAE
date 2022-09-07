@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tsnecuda import TSNE
 
-class meter:
+class train_meter:
     def __init__(self,epoch):
         self.loss=0
         self.recon_loss=0

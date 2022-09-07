@@ -12,6 +12,7 @@ import tqdm
 from dataloader import VaseDataset
 from model import VAE
 from VGGLoss import VGGPerceptualLoss
+from meter import meter,val_meter
 
 class Trainer:
     def __init__(self,param):
@@ -24,8 +25,10 @@ class Trainer:
         self.train_batch_size=param["train_batch_size"]
         self.test_batch_size=param["test_batch_size"]
         self.val_batch_size=param["val_batch_size"]
+        self.val_freq=param["val_freq"]
         self.seed=param["seed"]
         self.epochs=param["epochs"]
+        self.save_path=param["save_path"]
 
         self.seed()
         self.init_model()
@@ -75,9 +78,9 @@ class Trainer:
         return recon_loss+KLD_loss,recon_loss,KLD_loss
 
     
-    def train_one_epoch(self):
+    def train_one_epoch(self,epoch):
         self.model.train()
-        train_loss=0
+        meter=meter(epoch)
         for batch_idx,(data,_) in enumerate(self.train_dataloader):
             data=data.to(self.device)
             self.optimizer.zero_grad()
@@ -87,10 +90,51 @@ class Trainer:
             loss,recon_loss,KLD_loss=self.loss_func(data,recon_batch,mu,logvar)
             loss.backward()
             self.optimizer.step()
-            train_loss+=loss.item()
-            if batch_idx%100==0:
-                print("Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
-                    epoch, batch_idx * len(data), len(self.train_dataloader.dataset),
-                    100. * batch_idx / len(self.train_dataloader), loss.item()))
-        print("====> Epoch: {} Average loss: {:.4f}".format(epoch, train_loss / len(self.train_dataloader.dataset)))
+            meter.update(loss.item(),recon_loss.item(),KLD_loss.item())
+
+        print(meter)
+        meter.wandb_log()
+    
+    def val(self,epoch,loader=None,latent_space_save_path=None,image_save_path=None):
+
+        if loader is None or loader=="val":
+            loader=self.val_dataloader
+        elif loader=="test":
+            loader=self.test_dataloader
+        elif loader=="train":
+            loader=self.train_dataloader
+        else:
+            loader=loader
+
+
+        self.model.eval()
+        meter=val_meter(epoch)
+        with torch.no_grad():
+            for batch_idx,(data,_) in enumerate(loader):
+                data=data.to(self.device)
+                recon_batch,mu,logvar=self.model(data)
+                loss,recon_loss,KLD_loss=self.loss_func(data,recon_batch,mu,logvar)
+                meter.update(loss.item(),recon_loss.item(),KLD_loss.item(),mu,data,recon_batch)
+        if loader==self.val_dataloader:
+            print(meter)
+            meter.wandb_log()
+        if latent_space_save_path:
+            meter.plot_latent_space(latent_space_save_path)
+        if image_save_path:
+            meter.plot_images(image_save_path)
+
+    def train(self):
+        for epoch in range(self.epochs):
+            self.train_one_epoch(epoch)
+            if epoch%self.val_freq==0 and epoch!=0:
+                save_path=self.save_path+"/"+str(epoch)
+                os.makedirs(self.save_path+"/"+str(epoch),exist_ok=True)
+                self.val(epoch,loader="val",latent_space_save_path=save_path+"latent_space_val.png",image_save_path=save_path+"images_test.png")
+                self.val(epoch,loader="test",latent_space_save_path=save_path+"latent_space_test.png",image_save_path=save_path+"images_test.png")
+                self.val(epoch,loader="train",latent_space_save_path=save_path+"latent_space_train.png",image_save_path=save_path+"images_train.png")
+                torch.save(self.model.state_dict(),save_path+"model.pt")
+        
+
+        
+        
     

@@ -36,7 +36,7 @@ class Reshape(nn.Module):
 
 class VAE(nn.Module):
     def __init__(self, de_norm:nn.Module,latent_dim=32, in_channels=1, out_channels=1,encoder="ResNet18",reshape_size=(512,1),
-                 decoderBlock_channels=[512,256,128,64],decoderBlock_layers=[4,4,4,4]):
+                 decoderBlock_channels=[512,256,128,64],decoderBlock_layers=[4,4,4,4],beta=1):
         super(VAE, self).__init__()
         self.latent_dim = latent_dim
         self.in_channels = in_channels
@@ -55,6 +55,8 @@ class VAE(nn.Module):
         decoder_layers.append(nn.ConvTranspose2d(Blockin_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False))
         decoder_layers.append(nn.Tanh())
         self.decoder=nn.Sequential(*decoder_layers)
+
+        self.beta=beta
     
         
     def make_encoder(self,encoder):

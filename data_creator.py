@@ -63,8 +63,8 @@ if __name__=="__main__":
     print(df.head())
     print(df.shape)
     print(df['URI'][0])
-    #cut only the top 2000 rows
-    df=df.head(2000)
+    # #cut only the top 2000 rows
+    df=df.head(10000)
     # os.makedirs('Data/Images', exist_ok=True)
     with mp.Pool(mp.cpu_count()) as p:
         #p.map(save_images, df['URI'])

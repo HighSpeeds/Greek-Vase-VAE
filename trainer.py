@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import tqdm
+import os
 
 from dataloader import VaseDataset
 from model import VAE
@@ -75,13 +76,13 @@ class Trainer:
     def loss_func(self,x,x_recon,mu,logvar):
         recon_loss=self.recon_loss(x_recon,x)
         KLD_loss=self.model.kld_loss(mu,logvar)
-        return recon_loss+KLD_loss,recon_loss,KLD_loss
+        return recon_loss+self.model.beta*KLD_loss,recon_loss,KLD_loss
 
     
     def train_one_epoch(self,epoch):
         self.model.train()
         meter=train_meter(epoch)
-        for batch_idx,(data,_) in tqdm.tqdm(enumerate(self.train_dataloader)):
+        for batch_idx,data in tqdm.tqdm(enumerate(self.train_dataloader)):
             data=data.to(self.device)
             self.optimizer.zero_grad()
             recon_batch,mu,logvar=self.model(data)
@@ -110,7 +111,7 @@ class Trainer:
         self.model.eval()
         meter=val_meter(epoch)
         with torch.no_grad():
-            for batch_idx,(data,_) in enumerate(loader):
+            for batch_idx,data in enumerate(loader):
                 data=data.to(self.device)
                 recon_batch,mu,logvar=self.model(data)
                 loss,recon_loss,KLD_loss=self.loss_func(data,recon_batch,mu,logvar)
@@ -119,20 +120,21 @@ class Trainer:
             print(meter)
             meter.wandb_log()
         if latent_space_save_path:
-            meter.plot_latent_space(latent_space_save_path)
+            meter.plot_latent_space(save_path=latent_space_save_path)
         if image_save_path:
-            meter.plot_images(image_save_path)
+            meter.plot_images(save_path=image_save_path)
 
     def train(self):
         for epoch in range(self.epochs):
             self.train_one_epoch(epoch)
-            if epoch%self.val_freq==0 and epoch!=0:
+            if epoch%self.val_freq==0:
                 save_path=self.save_path+"/"+str(epoch)
                 os.makedirs(self.save_path+"/"+str(epoch),exist_ok=True)
-                self.val(epoch,loader="val",latent_space_save_path=save_path+"latent_space_val.png",image_save_path=save_path+"images_test.png")
-                self.val(epoch,loader="test",latent_space_save_path=save_path+"latent_space_test.png",image_save_path=save_path+"images_test.png")
-                self.val(epoch,loader="train",latent_space_save_path=save_path+"latent_space_train.png",image_save_path=save_path+"images_train.png")
-                torch.save(self.model.state_dict(),save_path+"model.pt")
+                print("Val on val set")
+                self.val(epoch,loader="val",latent_space_save_path=save_path+"/latent_space_val.png",image_save_path=save_path+"/images_val.png")
+                print("Val on train set")
+                self.val(epoch,loader="train",latent_space_save_path=save_path+"/latent_space_train.png",image_save_path=save_path+"/images_train.png")
+                torch.save(self.model.state_dict(),save_path+"/model.pt")
         
 
         

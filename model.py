@@ -15,11 +15,11 @@ class decoderBlock(nn.Module):
         super(decoderBlock, self).__init__()
         
         layers=[nn.ConvTranspose2d(in_channels, out_channels, kernel_size=4, stride=2, padding=1, bias=False),
-                nn.BatchNorm2d(out_channels),
+                # nn.BatchNorm2d(out_channels),
                 nn.ReLU()]
         for i in range(num_layers-1):
             layers.append(nn.ConvTranspose2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False))
-            layers.append(nn.BatchNorm2d(out_channels))
+            # layers.append(nn.BatchNorm2d(out_channels))
             layers.append(nn.ReLU())
         
         self.block=nn.Sequential(*layers)
@@ -35,7 +35,7 @@ class Reshape(nn.Module):
         return x.view([-1]+list(self.shape))
 
 class VAE(nn.Module):
-    def __init__(self, de_norm:nn.Module,latent_dim=32, in_channels=1, out_channels=1,encoder="ResNet18",reshape_size=(512,1),
+    def __init__(self, de_norm:nn.Module,latent_dim=32, in_channels=1, out_channels=1,encoder="ResNet18",reshape_size=(512,1,1),
                  decoderBlock_channels=[512,256,128,64],decoderBlock_layers=[4,4,4,4],beta=1):
         super(VAE, self).__init__()
         self.latent_dim = latent_dim

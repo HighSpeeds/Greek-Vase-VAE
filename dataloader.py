@@ -38,6 +38,10 @@ class VaseDataset(data.Dataset):
         image = PIL.Image.open(self.images[idx])
         #resize the image and pad
         image = PIL.ImageOps.pad(image, self.reshape_size,color=image.getpixel((0,0)))
+        #convert to grayscale
+        image = PIL.ImageOps.grayscale(image)
+        #convert to tensor
+        image = transforms.ToTensor()(image)
         return image
 
 #testing
